@@ -1,0 +1,35 @@
+services:
+  lora-scripts:
+    image: <你的dockerhub用户名>/lora-scripts-runpod:latest
+    container_name: lora-scripts
+    restart: unless-stopped
+    # 需要使用 GPU
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    ports:
+      - "28000:28000"  # SD-Trainer WebUI
+      - "28001:28001"  # Tag Editor
+      - "6006:6006"    # TensorBoard
+    environment:
+      - PUBLIC_KEY=    # 填入你的 SSH 公钥内容，可选
+    # 共享本地文件夹（请根据实际修改）
+    volumes:
+      # 训练数据集 / 输出 / 日志 / 配置 持久化（按需取消注释）
+      # - "/data/srv/lora-scripts/train:/app/lora-scripts/train"
+      # - "/data/srv/lora-scripts/output:/app/lora-scripts/output"
+      # - "/data/srv/lora-scripts/logs:/app/lora-scripts/logs"
+      # - "/data/srv/lora-scripts/config:/app/lora-scripts/config"
+
+      # 共享 comfyui 大模型（挂载为 sd-models 下的子目录，训练时选择该子目录中的模型即可）
+      - "/data/srv/comfyui/models/checkpoints:/app/lora-scripts/sd-models/comfyui"
+
+      # 共享 sd-webui 大模型
+      - "/data/srv/stable-diffusion-webui/models/Stable-diffusion:/app/lora-scripts/sd-models/sd-webui"
+
+      # 训练完的 LoRA 直接产出到 comfyui 的 lora 目录，方便立即在 comfyui 中使用
+      # - "/data/srv/comfyui/models/loras:/app/lora-scripts/output"

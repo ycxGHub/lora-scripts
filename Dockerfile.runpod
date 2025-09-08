@@ -1,0 +1,37 @@
+# RunPod image for SD-Trainer (lora-scripts)
+# Based on RunPod's official PyTorch image, which already provides SSH /
+# JupyterLab bootstrapping via its built-in /start.sh.
+FROM runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04
+
+ENV TZ=Asia/Shanghai
+ENV DEBIAN_FRONTEND=noninteractive
+
+# 28000: SD-Trainer WebUI, 6006: TensorBoard, 28001: Tag Editor
+EXPOSE 28000 6006 28001
+
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone && \
+    apt update && \
+    apt install -y python3-tk ffmpeg libsm6 libxext6 libgl1 && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /app/lora-scripts
+WORKDIR /app/lora-scripts
+
+COPY . /app/lora-scripts
+
+RUN pip install --no-cache-dir xformers==0.0.27.post2 --no-deps && \
+    pip install --no-cache-dir -r requirements.txt
+
+WORKDIR /app/lora-scripts/scripts/stable
+RUN pip install --no-cache-dir -r requirements.txt
+
+WORKDIR /app/lora-scripts/scripts/dev
+RUN pip install --no-cache-dir -r requirements.txt
+
+WORKDIR /app/lora-scripts
+
+COPY docker/runpod-start.sh /runpod-start.sh
+RUN chmod +x /runpod-start.sh
+
+# Chain into the base image's own start.sh (handles SSH/Jupyter) after our setup.
+CMD ["/runpod-start.sh"]

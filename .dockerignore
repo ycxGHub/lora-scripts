@@ -1,0 +1,13 @@
+venv/
+output/
+logs/
+config/autosave/
+train/
+sd-models/
+huggingface/
+.git/
+.idea/
+.vscode/
+__pycache__/
+*.pyc
+node_modules/
