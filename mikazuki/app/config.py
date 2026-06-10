@@ -10,7 +10,8 @@ class Config:
         self._stored = {}
         self._default = {
             "last_path": "",
-            "saved_params": {}
+            "saved_params": {},
+            "comfyui_dir": ""
         }
         self.lock = False
 

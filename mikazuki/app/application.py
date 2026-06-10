@@ -16,6 +16,8 @@ from mikazuki.app.api import load_schemas, load_presets
 from mikazuki.app.api import router as api_router
 # from mikazuki.app.ipc import router as ipc_router
 from mikazuki.app.proxy import router as proxy_router
+from mikazuki.log import log
+from mikazuki.utils import train_utils
 from mikazuki.utils.devices import check_torch_gpu
 
 mimetypes.add_type("application/javascript", ".js")
@@ -39,6 +41,13 @@ async def app_startup():
     await load_schemas()
     await load_presets()
     await asyncio.to_thread(check_torch_gpu)
+
+    comfyui_dir = app_config["comfyui_dir"]
+    if comfyui_dir:
+        try:
+            train_utils.link_comfyui_dir(comfyui_dir)
+        except Exception as e:
+            log.warning(f"Failed to relink ComfyUI dir {comfyui_dir}: {e}")
 
     if sys.platform == "win32" and os.environ.get("MIKAZUKI_DEV", "0") != "1":
         webbrowser.open(f'http://{os.environ["MIKAZUKI_HOST"]}:{os.environ["MIKAZUKI_PORT"]}')
@@ -87,5 +96,10 @@ async def index():
 @app.get("/favicon.ico", response_class=FileResponse)
 async def favicon():
     return FileResponse("assets/favicon.ico")
+
+
+@app.get("/comfyui-config", response_class=FileResponse)
+async def comfyui_config_page():
+    return FileResponse(os.path.join(os.path.dirname(__file__), "static", "comfyui.html"))
 
 app.mount("/", SPAStaticFiles(directory="frontend/dist", html=True), name="static")

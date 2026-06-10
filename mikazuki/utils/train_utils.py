@@ -256,3 +256,57 @@ def fix_config_types(config: dict):
     for k in keep_float_params:
         if k in config:
             config[k] = float(config[k])
+
+
+def link_comfyui_dir(comfyui_dir: str) -> Dict:
+    """Link lora-scripts' model dirs to a ComfyUI installation so checkpoints
+    can be reused, and expose trained LoRA output back to ComfyUI.
+
+    - <root>/sd-models/comfyui      -> <comfyui_dir>/models/checkpoints
+    - <comfyui_dir>/models/loras/lora-scripts -> <root>/output
+
+    Returns a dict describing what was linked, raises ValueError on bad input.
+    """
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+    comfyui_dir = os.path.abspath(comfyui_dir)
+    if not os.path.isdir(comfyui_dir):
+        raise ValueError(f"目录不存在: {comfyui_dir}")
+
+    comfyui_models_dir = os.path.join(comfyui_dir, "models")
+    if not os.path.isdir(comfyui_models_dir):
+        raise ValueError(f"不是有效的 ComfyUI 目录（缺少 models 文件夹）: {comfyui_dir}")
+
+    checkpoints_dir = os.path.join(comfyui_models_dir, "checkpoints")
+    loras_dir = os.path.join(comfyui_models_dir, "loras")
+    os.makedirs(checkpoints_dir, exist_ok=True)
+    os.makedirs(loras_dir, exist_ok=True)
+
+    sd_models_link = os.path.join(base_dir, "sd-models", "comfyui")
+    output_dir = os.path.join(base_dir, "output")
+    os.makedirs(output_dir, exist_ok=True)
+    loras_link = os.path.join(loras_dir, "lora-scripts")
+
+    def relink(link_path, target_path):
+        if os.path.islink(link_path):
+            os.unlink(link_path)
+        elif os.path.exists(link_path):
+            # don't clobber a real directory, leave it alone
+            return False
+        os.makedirs(os.path.dirname(link_path), exist_ok=True)
+        os.symlink(target_path, link_path, target_is_directory=True)
+        return True
+
+    linked_checkpoints = relink(sd_models_link, checkpoints_dir)
+    linked_loras = relink(loras_link, output_dir)
+
+    log.info(f"ComfyUI checkpoints linked: {sd_models_link} -> {checkpoints_dir} ({linked_checkpoints})")
+    log.info(f"lora-scripts output linked: {loras_link} -> {output_dir} ({linked_loras})")
+
+    return {
+        "comfyui_dir": comfyui_dir,
+        "sd_models_link": sd_models_link,
+        "linked_checkpoints": linked_checkpoints,
+        "loras_link": loras_link,
+        "linked_loras": linked_loras,
+    }

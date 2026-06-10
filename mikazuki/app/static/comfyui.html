@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ComfyUI 模型目录设置</title>
+<style>
+  body { font-family: -apple-system, "Microsoft YaHei", sans-serif; max-width: 640px; margin: 60px auto; padding: 0 20px; color: #222; }
+  h1 { font-size: 20px; }
+  .desc { color: #666; font-size: 14px; line-height: 1.6; margin-bottom: 24px; }
+  .row { display: flex; gap: 8px; margin-bottom: 12px; }
+  input[type=text] { flex: 1; padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+  button { padding: 8px 18px; border: none; border-radius: 4px; background: #2563eb; color: #fff; font-size: 14px; cursor: pointer; }
+  button:hover { background: #1d4ed8; }
+  .status { margin-top: 16px; font-size: 14px; padding: 10px 12px; border-radius: 4px; display: none; white-space: pre-wrap; }
+  .status.ok { display: block; background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+  .status.err { display: block; background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+  code { background: #f3f4f6; padding: 1px 4px; border-radius: 3px; }
+</style>
+</head>
+<body>
+  <h1>ComfyUI 模型目录共享</h1>
+  <div class="desc">
+    填写 ComfyUI 安装目录的绝对路径（包含 <code>models/checkpoints</code> 和 <code>models/loras</code> 的那个目录），
+    保存后会自动建立软链接：<br>
+    · <code>sd-models/comfyui</code> → <code>&lt;ComfyUI&gt;/models/checkpoints</code>（在训练时可直接选用 ComfyUI 的底模）<br>
+    · <code>&lt;ComfyUI&gt;/models/loras/lora-scripts</code> → <code>output</code>（训练产出的 LoRA 自动出现在 ComfyUI 中）
+  </div>
+  <div class="row">
+    <input type="text" id="path" placeholder="例如 /workspace/runSlim/ComfyUI">
+    <button onclick="save()">保存并链接</button>
+  </div>
+  <div id="status" class="status"></div>
+
+  <script>
+    const statusEl = document.getElementById('status');
+    const pathEl = document.getElementById('path');
+
+    function showStatus(ok, msg) {
+      statusEl.className = 'status ' + (ok ? 'ok' : 'err');
+      statusEl.textContent = msg;
+    }
+
+    async function load() {
+      try {
+        const res = await fetch('/api/config/comfyui_dir');
+        const data = await res.json();
+        if (data.status === 'success' && data.data.comfyui_dir) {
+          pathEl.value = data.data.comfyui_dir;
+        }
+      } catch (e) {}
+    }
+
+    async function save() {
+      const comfyui_dir = pathEl.value.trim();
+      if (!comfyui_dir) {
+        showStatus(false, '请输入路径');
+        return;
+      }
+      try {
+        const res = await fetch('/api/config/comfyui_dir', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ comfyui_dir })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+          showStatus(true, '链接成功:\n' + JSON.stringify(data.data, null, 2));
+        } else {
+          showStatus(false, data.message || '保存失败');
+        }
+      } catch (e) {
+        showStatus(false, '请求失败: ' + e);
+      }
+    }
+
+    load();
+  </script>
+</body>
+</html>

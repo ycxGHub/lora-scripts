@@ -363,3 +363,34 @@ async def get_presets() -> APIResponse:
 async def get_saved_params() -> APIResponse:
     saved_params = app_config["saved_params"]
     return APIResponseSuccess(data=saved_params)
+
+
+@router.get("/config/comfyui_dir")
+async def get_comfyui_dir() -> APIResponse:
+    comfyui_dir = app_config["comfyui_dir"] or ""
+    return APIResponseSuccess(data={
+        "comfyui_dir": comfyui_dir,
+        "linked": os.path.islink(os.path.join(os.getcwd(), "sd-models", "comfyui"))
+    })
+
+
+@router.post("/config/comfyui_dir")
+async def set_comfyui_dir(request: Request) -> APIResponse:
+    json_data = await request.body()
+    data = json.loads(json_data.decode("utf-8"))
+    comfyui_dir = data.get("comfyui_dir", "").strip()
+
+    if comfyui_dir == "":
+        return APIResponseFail(message="路径不能为空")
+
+    try:
+        result = train_utils.link_comfyui_dir(comfyui_dir)
+    except ValueError as e:
+        return APIResponseFail(message=str(e))
+    except OSError as e:
+        return APIResponseFail(message=f"创建软链接失败: {e}")
+
+    app_config["comfyui_dir"] = comfyui_dir
+    app_config.save_config()
+
+    return APIResponseSuccess(data=result)
